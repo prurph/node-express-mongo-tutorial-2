@@ -9,17 +9,22 @@ $(document).ready(function() {
   $('#userList table tbody').on('click', 'td a.linkshowuser', showUserInfo);
   // Add User button click
   $('#btnAddUser').on('click', addUser);
+  // Delete User link click
+  $('#userList table tbody').on('click', 'td a.linkdeleteuser', deleteUser);
+  // Hide the Edit User
+  $('#editUser').hide();
+  // Edit User link click
+  $('#userList table tbody').on('click', 'td a.linkedituser', editUser);
 });
 
 // functions =====
 function populateTable() {
   var tableContent = '';
 
-  // cast the jQuery AJAX call to a true promise
-  Promise.cast($.getJSON('/users/userlist'))
+  $.getJSON('/users/userlist')
 
     // once we have the JSON, add table row/cells to the content string
-    .then(function(data) {
+    .done(function(data) {
 
       // why not just throw the user data array into a global variable
       userListData = data;
@@ -30,6 +35,7 @@ function populateTable() {
           '" title="Show Details">' + this.username + '</td>';
         tableContent += '<td>' + this.email + '</td>';
         tableContent += '<td><a href="#" class="linkdeleteuser" rel="' + this._id + '">delete</a></td>';
+        tableContent += '<td><a href="#" class="linkedituser" rel="' + this._id + '">edit</a></td>';
         tableContent += '</tr>';
       });
 
@@ -80,13 +86,13 @@ function addUser(event) {
       'gender': $('#inputUserGender').val()
     };
 
-    Promise.cast($.ajax({
+    $.ajax({
       type: 'POST',
       data: newUser,
       url: '/users/adduser',
       dataType: 'JSON'
-    }))
-      .then(function(response) {
+    })
+      .done(function(response) {
         if (response.msg === '') {
           $('#addUser fieldset input').val('');
           populateTable();
@@ -101,4 +107,88 @@ function addUser(event) {
     alert('Please fill in all fields');
     return false;
   }
+}
+
+function deleteUser(event) {
+  event.preventDefault();
+
+  var confirmation = confirm('Really delete this user?');
+
+  if (confirmation) {
+    $.ajax({
+      type: 'DELETE',
+      url: '/users/deleteuser/' + $(this).attr('rel')
+    })
+      .done(function(response) {
+        if (response.msg !== '') {
+          alert('Error: ' + response.msg);
+        }
+        populateTable();
+      });
+  }
+  // if user didn't confirm delete, do nothing
+  else {
+    return false;
+  }
+}
+
+function editUser(event) {
+  event.preventDefault();
+
+  var thisUserID = $(this).attr('rel');
+
+  // retrieve index of object based on id; this would be a good spot for underscore
+  // and _.pluck
+  var arrayPosition = userListData.map(function(arrayItem) {
+    return arrayItem._id;
+  }).indexOf(thisUserID);
+
+  // retrive user object; now we could just have used underscore and _.select
+  // on the original userListData
+  var thisUserObject = userListData[arrayPosition];
+
+  // populate form
+  $('#inputEditUserName').val(thisUserObject.username);
+  $('#inputEditUserEmail').val(thisUserObject.email);
+  $('#inputEditUserFullname').val(thisUserObject.fullname);
+  $('#inputEditUserAge').val(thisUserObject.age);
+  $('#inputEditUserLocation').val(thisUserObject.location);
+  $('#inputEditUserGender').val(thisUserObject.gender);
+
+  $('#addUser').hide();
+  $('#editUser').show();
+
+  // unbind any previous handlers so that subsequent edits don't also edit
+  // previous targets
+  $('#btnEditUser').off('click');
+  $('#btnEditUser').on('click', function(event) {
+    // get updated user info
+    event.preventDefault();
+
+    var updatedUser = {
+      'username': $('#inputEditUserName').val(),
+      'email': $('#inputEditUserEmail').val(),
+      'fullname': $('#inputEditUserFullname').val(),
+      'age': $('#inputEditUserAge').val(),
+      'location': $('#inputEditUserLocation').val(),
+      'gender': $('#inputEditUserGender').val()
+    };
+    // update the user
+    $.ajax({
+      type: 'PUT',
+      data: updatedUser,
+      url: '/users/edituser/' + thisUserID,
+      dataType: 'JSON'
+    })
+      .done(function(response) {
+        if (response.msg !== '') {
+          alert('Error: ' + response.msg);
+        }
+        else {
+          $('#addUser').show();
+          $('#editUser').hide();
+        }
+        populateTable();
+      });
+  });
 }
