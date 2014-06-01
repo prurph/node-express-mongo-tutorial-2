@@ -7,6 +7,8 @@ $(document).ready(function() {
 
   // username link click
   $('#userList table tbody').on('click', 'td a.linkshowuser', showUserInfo);
+  // Add User button click
+  $('#btnAddUser').on('click', addUser);
 });
 
 // functions =====
@@ -58,4 +60,45 @@ function showUserInfo(event) {
   $('#userInfoGender').text(thisUserObject.gender);
   $('#userInfoLocation').text(thisUserObject.location);
   return false;
+}
+
+function addUser(event) {
+  event.preventDefault();
+
+  var errorCount = 0;
+  $('#addUser input').each(function(index, val) {
+    if ($(this).val() === '') { errorCount++; }
+  });
+
+  if (errorCount === 0) {
+    var newUser = {
+      'username': $('#inputUserName').val(),
+      'email': $('#inputUserEmail').val(),
+      'fullname': $('#inputUserFullname').val(),
+      'age': $('#inputUserAge').val(),
+      'location': $('#inputUserLocation').val(),
+      'gender': $('#inputUserGender').val()
+    };
+
+    Promise.cast($.ajax({
+      type: 'POST',
+      data: newUser,
+      url: '/users/adduser',
+      dataType: 'JSON'
+    }))
+      .then(function(response) {
+        if (response.msg === '') {
+          $('#addUser fieldset input').val('');
+          populateTable();
+        }
+        else {
+          alert('Error: ' + response.msg);
+        }
+      });
+  }
+  // error out if errorCount is more than 0
+  else {
+    alert('Please fill in all fields');
+    return false;
+  }
 }
